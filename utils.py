@@ -1,5 +1,6 @@
 import argparse
 from cli_utils.rps_test import calculate_rps
+from cli_utils.ping import ping
 
 
 def main():
@@ -16,15 +17,15 @@ def main():
                                     dest='count',
                                     default=1,
                                     type=int)
-    rps_test_subparser.add_argument('-t', '--timeout',
-                                    help='Timeout in seconds',
-                                    dest='timeout',
-                                    type=int)
     rps_test_subparser.add_argument('-c', '--concurrency-level',
                                     help='Number of requests to perform at a time, default is 1 '
                                          '(in this case requests will be sent non-concurrently).',
                                     dest='level',
                                     default=1,
+                                    type=int)
+    rps_test_subparser.add_argument('-t', '--timeout',
+                                    help='Timeout in seconds',
+                                    dest='timeout',
                                     type=int)
 
     ping_subparser = subparsers.add_parser('ping',
@@ -34,19 +35,18 @@ def main():
     ping_subparser.add_argument('--timeout', '-t',
                                 help='Timeout in seconds',
                                 dest='timeout',
-                                type=float)
+                                type=int)
     ping_subparser.add_argument('--interval', '-i',
                                 help='Interval between pings in microseconds',
                                 dest='interval',
-                                type=float)
+                                type=int)
 
     args = parser.parse_args()
 
     if args.command == 'rps-test':
         calculate_rps(args.url, args.count, args.level, args.timeout)
     elif args.command == 'ping':
-        # Not implemented yet
-        pass
+        ping(args.url, args.timeout, args.interval)
     elif args.command == 'netscan':
         # Not implemented yet
         pass
