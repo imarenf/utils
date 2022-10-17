@@ -33,18 +33,6 @@ class RPSTester:
         self.total_sent = 0
 
     @staticmethod
-    def validate_args(requests_total: int, concurrency_level: int, timeout: int) -> None:
-        if requests_total <= 0:
-            print('The number of requests must be positive')
-            exit(1)
-        if concurrency_level <= 0:
-            print('Concurrency level must be positive')
-            exit(1)
-        if timeout <= 0:
-            print('Timeout must be a positive number of seconds')
-            exit(1)
-
-    @staticmethod
     def handle_timeout(signum: int, frame):
         global rps_tester_stopped
         rps_tester_stopped = False
@@ -52,13 +40,14 @@ class RPSTester:
     @staticmethod
     def _run_and_get_stats(func):
         @functools.wraps(func)
-        def inner(*args, **kwargs):
+        async def inner(*args, **kwargs):
             self = args[0]
             start_timestamp = datetime.now()
-            sent, received = asyncio.run(func(*args, **kwargs))
+            sent, received = await func(*args, **kwargs)
             task_time = (datetime.now() - start_timestamp).total_seconds()
             rps = round(sent / task_time, 1)
-            request_time = round(task_time / sent, 1)
+            request_time = round(task_time / sent, 2)
+            self.total_sent += sent
             self.data.append(ChunkData(received, sent-received, task_time, request_time, rps))
         return inner
 
@@ -70,7 +59,7 @@ class RPSTester:
         else:
             return hostname,
 
-    def collect_and_print_server_info(self) -> None:
+    def _collect_and_print_server_info(self) -> None:
         url_parsed = urlparse(self.url)
         response = requests.get(self.url)
         host_data = RPSTester._resolve_hostname(url_parsed.netloc)
@@ -99,15 +88,8 @@ class RPSTester:
             f'Document Length: {response.headers.get("Content-Length")}'
         )
 
-    @_run_and_get_stats
-    async def send_requests(self, times: int, session) -> Tuple[int, int]:
-        tasks = (asyncio.create_task(session.get(self.url)) for _ in range(times))
-        responses = await asyncio.gather(*tasks)
-        stats = Counter((r.ok for r in responses))
-        return stats.total(), stats.get(True)
-
-    def print_stats(self):
-        rps_data = (chunk.rps for chunk in self.data)
+    def _print_stats(self):
+        rps_data = [chunk.rps for chunk in self.data]
         mean_rps = fmean(rps_data)
         median_rps = median(rps_data)
         max_rps = max(rps_data)
@@ -115,7 +97,7 @@ class RPSTester:
         total_complete = sum(chunk.received for chunk in self.data)
         total_failed = sum(chunk.failed for chunk in self.data)
         mean_request_time = fmean(chunk.request_time for chunk in self.data)
-        full_time = sum(chunk.full_time for chunk in self.data)
+        full_time = round(sum(chunk.full_time for chunk in self.data), 4)
         print(
             f'Total Requests Sent: {self.total_sent}\n'
             f'Complete Requests: {total_complete}\n'
@@ -125,14 +107,32 @@ class RPSTester:
             f'RPS: {mean_rps} (mean),  {median_rps} (median),  {min_rps} (min),  {max_rps} (max)'
         )
 
+    @_run_and_get_stats
+    async def _send_requests(self, times: int, session) -> Tuple[int, int]:
+        tasks = (asyncio.create_task(session.get(self.url)) for _ in range(times))
+        responses = await asyncio.gather(*tasks)
+        stats = Counter((r.ok for r in responses))
+        return stats.total(), stats.get(True)
+
+    @staticmethod
+    def validate_args(requests_total: int, concurrency_level: int, timeout: int) -> None:
+        if requests_total <= 0:
+            print('The number of requests must be positive')
+            exit(1)
+        if concurrency_level <= 0:
+            print('Concurrency level must be positive')
+            exit(1)
+        if timeout and timeout <= 0:
+            print('Timeout must be a positive number of seconds')
+            exit(1)
+
     async def start_testing(self, total: int, level: int) -> None:
         global rps_tester_stopped
-        self.collect_and_print_server_info()
+        self._collect_and_print_server_info()
         async with aiohttp.ClientSession() as session:
-            while self.total_sent < total and not rps_tester_stopped:
-                await self.send_requests(times=level, session=session)
-                self.total_sent += level
-        self.print_stats()
+            while self.total_sent < total:  # and not rps_tester_stopped:
+                await self._send_requests(times=level, session=session)
+        self._print_stats()
 
 
 def calculate_rps(url: str, requests_total: int, concurrency_level: int, timeout: int = None) -> None:
@@ -141,4 +141,4 @@ def calculate_rps(url: str, requests_total: int, concurrency_level: int, timeout
         signal.signal(__signalnum=signal.SIGALRM, __handler=RPSTester.handle_timeout)
         signal.alarm(__seconds=timeout)
     api = RPSTester(url)
-    api.start_testing(total=requests_total, level=concurrency_level)
+    asyncio.run(api.start_testing(total=requests_total, level=concurrency_level))
