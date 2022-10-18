@@ -1,6 +1,6 @@
 import argparse
 from cli_utils.rps_test import calculate_rps
-from cli_utils.ping import ping
+from cli_utils.ping import ping_wrapper
 
 
 def main():
@@ -46,7 +46,7 @@ def main():
     if args.command == 'rps-test':
         calculate_rps(args.url, args.count, args.level, args.timeout)
     elif args.command == 'ping':
-        ping(args.url, args.timeout, args.interval)
+        ping_wrapper(args.url, args.timeout, args.interval)
     elif args.command == 'netscan':
         # Not implemented yet
         pass
