@@ -19,5 +19,4 @@ fi
 python3 -m pip install -r requirements.txt
 
 # build python module
-cd thirdparty
-CC=gcc python3 setup.py install --quiet
+CC=gcc python3 ./thirdparty/setup.py install --quiet

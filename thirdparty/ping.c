@@ -138,6 +138,11 @@ static PyObject* ping_many_times(PyObject* self, PyObject* args) {
 
     int sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
+    if (sock_fd == -1) {
+        printf("Unable to create raw socket. Please, provide CAP_NET_RAW privileges\n");
+        return PyLong_FromLong(EXIT_FAILURE);
+    }
+
     size_t send_count = 0, recv_count = 0;
     ulong start_time = get_time();
     for (;;) {

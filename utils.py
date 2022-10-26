@@ -1,6 +1,8 @@
 import argparse
+
 from cli_utils.rps_test import calculate_rps
 from cli_utils.ping import ping_wrapper
+from cli_utils.netscan import PortScaner
 
 
 def main():
@@ -41,15 +43,22 @@ def main():
                                 dest='interval',
                                 type=int)
 
-    args = parser.parse_args()
+    netscan_subparser = subparsers.add_parser('netscan',
+                                              help='Scan open ports of the given domain')
+    netscan_subparser.add_argument('target',
+                                   help='Target host (ip or hostname format)')
+    netscan_subparser.add_argument('--timeout', '-t',
+                                   help='Timeout in seconds',
+                                   dest='timeout',
+                                   type=int)
 
+    args = parser.parse_args()
     if args.command == 'rps-test':
         calculate_rps(args.url, args.count, args.level, args.timeout)
     elif args.command == 'ping':
         ping_wrapper(args.url, args.timeout, args.interval)
     elif args.command == 'netscan':
-        # Not implemented yet
-        pass
+        PortScaner(args.target, args.timeout).net_scan()
     else:
         print('Nothing to do')
 

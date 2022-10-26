@@ -130,7 +130,7 @@ class RPSTester:
         global rps_tester_stopped
         self._collect_and_print_server_info()
         async with aiohttp.ClientSession() as session:
-            while self.total_sent < total:  # and not rps_tester_stopped:
+            while self.total_sent < total and not rps_tester_stopped:
                 await self._send_requests(times=level, session=session)
         self._print_stats()
 
