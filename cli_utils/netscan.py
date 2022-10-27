@@ -16,7 +16,7 @@ class PortScaner:
         return resp_packet is not None
 
     def try_access(self, port):
-        syn_packet = IP(dst=self.host) / TCP(dport=port, flags="S")
+        syn_packet = IP(dst=self.host) / TCP(dport=port, flags='S')
         resp_packet = sr1(syn_packet, timeout=self.timeout)
         if resp_packet is not None and resp_packet.getlayer('TCP').flags & 0x12 != 0:
             self.open_ports.append(port)
